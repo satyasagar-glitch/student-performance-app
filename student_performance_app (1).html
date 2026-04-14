@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Performance Post-Prediction Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f5f6fa;color:#1a1a2e;min-height:100vh}
+  .topbar{background:#fff;border-bottom:1px solid #e8eaed;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .topbar h1{font-size:17px;font-weight:600;color:#1a1a2e}
+  .topbar p{font-size:12px;color:#666;margin-top:2px}
+  .badge{font-size:12px;padding:4px 12px;border-radius:20px;background:#e1f5ee;color:#0f6e56;font-weight:500}
+  .nav{background:#fff;border-bottom:1px solid #e8eaed;display:flex;gap:0;padding:0 24px;overflow-x:auto}
+  .nav-btn{font-size:13px;padding:12px 18px;border:none;background:none;color:#666;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+  .nav-btn:hover{color:#185fa5}
+  .nav-btn.active{color:#185fa5;border-bottom-color:#185fa5;font-weight:500}
+  .container{max-width:1100px;margin:0 auto;padding:24px 16px}
+  .page{display:none}.page.active{display:block}
+  .metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .mc{background:#fff;border-radius:10px;padding:16px 18px;border:1px solid #e8eaed}
+  .mc .lbl{font-size:12px;color:#888;margin-bottom:6px}
+  .mc .val{font-size:24px;font-weight:600}
+  .mc .sub{font-size:11px;margin-top:3px}
+  .up{color:#0f6e56}.down{color:#a32d2d}.warn{color:#854f0b}
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .card{background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:18px 20px;margin-bottom:14px}
+  .card-title{font-size:11px;font-weight:600;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:14px}
+  .pill{display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+  .pill-high{background:#e1f5ee;color:#0f6e56}
+  .pill-avg{background:#e6f1fb;color:#185fa5}
+  .pill-low{background:#fcebeb;color:#a32d2d}
+  .pill-warn{background:#faeeda;color:#854f0b}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .form-group label{font-size:12px;color:#555;display:block;margin-bottom:5px;font-weight:500}
+  .form-group input,.form-group select{width:100%;font-size:14px;padding:9px 12px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-family:inherit;outline:none;transition:border 0.2s}
+  .form-group input:focus,.form-group select:focus{border-color:#185fa5}
+  .predict-btn{width:100%;padding:12px;font-size:15px;font-weight:600;background:#185fa5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:background 0.2s}
+  .predict-btn:hover{background:#0c447c}
+  .result-box{display:none;background:#f8faff;border:1px solid #b5d4f4;border-radius:12px;padding:20px;margin-top:16px;text-align:center}
+  .result-score{font-size:56px;font-weight:700;line-height:1}
+  .result-label{font-size:14px;color:#555;margin-top:6px}
+  .result-advice{text-align:left;margin-top:16px;border-top:1px solid #e8eaed;padding-top:14px}
+  .advice-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;font-size:13px;color:#333}
+  .advice-icon{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px}
+  .icon-ok{background:#e1f5ee;color:#0f6e56}
+  .icon-warn{background:#faeeda;color:#854f0b}
+  .icon-bad{background:#fcebeb;color:#a32d2d}
+  .search-bar{width:100%;font-size:14px;padding:10px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-family:inherit;margin-bottom:14px;outline:none}
+  .search-bar:focus{border-color:#185fa5}
+  .factor-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .factor-lbl{font-size:13px;color:#555;width:140px;flex-shrink:0}
+  .factor-track{flex:1;height:10px;background:#f0f2f5;border-radius:20px;overflow:hidden}
+  .factor-fill{height:100%;border-radius:20px;transition:width 1s ease}
+  .factor-val{font-size:13px;font-weight:600;width:36px;text-align:right;color:#1a1a2e}
+  .student-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f2f5}
+  .student-row:last-child{border-bottom:none}
+  .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+  .stu-info{flex:1}
+  .stu-name{font-size:14px;font-weight:500;color:#1a1a2e}
+  .stu-meta{font-size:12px;color:#888;margin-top:2px}
+  .trend-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f2f5}
+  .trend-item:last-child{border-bottom:none}
+  .insight-chip{display:inline-block;font-size:12px;padding:6px 14px;border-radius:20px;border:1px solid #ddd;color:#555;margin:4px;cursor:pointer;background:#fff;transition:all 0.2s;font-family:inherit}
+  .insight-chip:hover{background:#e6f1fb;border-color:#378add;color:#185fa5}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#666}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block}
+  @media(max-width:680px){
+    .metric-row{grid-template-columns:repeat(2,1fr)}
+    .grid2,.grid3,.form-row{grid-template-columns:1fr}
+    .container{padding:16px 10px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Student Performance — Post-Prediction Analysis</h1>
+    <p>Academic Year 2024–25 &nbsp;·&nbsp; Engineering Department &nbsp;·&nbsp; 320 Students</p>
+  </div>
+  <span class="badge">Model Accuracy: 91.4%</span>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
+  <button class="nav-btn" onclick="showPage('predict',this)">Predict performance</button>
+  <button class="nav-btn" onclick="showPage('students',this)">Students</button>
+  <button class="nav-btn" onclick="showPage('factors',this)">Factor analysis</button>
+  <button class="nav-btn" onclick="showPage('insights',this)">Insights</button>
+</div>
+
+<div class="container">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="page active">
+    <div class="metric-row">
+      <div class="mc"><div class="lbl">Avg predicted score</div><div class="val">72.4</div><div class="sub up">+3.2 vs last semester</div></div>
+      <div class="mc"><div class="lbl">Model accuracy</div><div class="val">91.4%</div><div class="sub up">±4.1 avg deviation</div></div>
+      <div class="mc"><div class="lbl">At-risk students</div><div class="val" style="color:#a32d2d">48</div><div class="sub down">15% of cohort</div></div>
+      <div class="mc"><div class="lbl">High performers</div><div class="val" style="color:#0f6e56">87</div><div class="sub up">27% of cohort</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Predicted vs actual — score distribution</div>
+        <div class="legend" style="margin-bottom:10px">
+          <span><span class="legend-dot" style="background:#378add"></span>Predicted</span>
+          <span><span class="legend-dot" style="background:#1d9e75"></span>Actual</span>
+        </div>
+        <div style="position:relative;height:210px"><canvas id="distC"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Category breakdown</div>
+        <div style="position:relative;height:170px"><canvas id="donutC"></canvas></div>
+        <div class="legend" style="justify-content:center;margin-top:10px">
+          <span><span class="legend-dot" style="background:#1d9e75"></span>High 27%</span>
+          <span><span class="legend-dot" style="background:#378add"></span>Average 58%</span>
+          <span><span class="legend-dot" style="background:#d85a30"></span>At risk 15%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Subject-wise predicted vs actual scores</div>
+      <div class="legend" style="margin-bottom:10px">
+        <span><span class="legend-dot" style="background:#378add99"></span>Predicted</span>
+        <span><span class="legend-dot" style="background:#1d9e7599"></span>Actual</span>
+      </div>
+      <div style="position:relative;height:180px"><canvas id="subC"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Study hours vs performance trend</div>
+      <div class="legend" style="margin-bottom:10px">
+        <span><span class="legend-dot" style="background:#378add"></span>Predicted</span>
+        <span><span class="legend-dot" style="background:#1d9e75"></span>Actual</span>
+      </div>
+      <div style="position:relative;height:180px"><canvas id="lineC"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PREDICT -->
+  <div id="predict" class="page">
+    <div class="card">
+      <div class="card-title">Enter student details to predict performance</div>
+      <div class="form-row">
+        <div class="form-group"><label>Student name</label><input type="text" id="sname" placeholder="e.g. Priya Sharma"></div>
+        <div class="form-group"><label>Department</label>
+          <select id="sdept">
+            <option>Computer Science</option>
+            <option>Electronics</option>
+            <option>Mechanical</option>
+            <option>Civil</option>
+            <option>Information Technology</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Attendance (%)</label><input type="number" id="att" min="0" max="100" step="1" placeholder="e.g. 82"></div>
+        <div class="form-group"><label>Study hours / week</label><input type="number" id="study" min="0" max="30" step="1" placeholder="e.g. 8"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Internal marks (out of 50)</label><input type="number" id="internal" min="0" max="50" step="1" placeholder="e.g. 38"></div>
+        <div class="form-group"><label>Assignment score (%)</label><input type="number" id="assign" min="0" max="100" step="1" placeholder="e.g. 75"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Lab performance (%)</label><input type="number" id="lab" min="0" max="100" step="1" placeholder="e.g. 70"></div>
+        <div class="form-group"><label>Participation score (%)</label><input type="number" id="part" min="0" max="100" step="1" placeholder="e.g. 65"></div>
+      </div>
+      <button class="predict-btn" onclick="runPredict()">Predict performance</button>
+      <div class="result-box" id="resultBox">
+        <div class="result-score" id="resScore">--</div>
+        <div class="result-label" id="resLabel">--</div>
+        <div class="result-advice" id="resAdvice"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDENTS -->
+  <div id="students" class="page">
+    <input class="search-bar" type="text" placeholder="Search by name or roll number..." oninput="filterStudents(this.value)">
+    <div class="card">
+      <div class="card-title">Student records</div>
+      <div id="studentList"></div>
+    </div>
+  </div>
+
+  <!-- FACTORS -->
+  <div id="factors" class="page">
+    <div class="card">
+      <div class="card-title">Factor correlation strength with academic performance</div>
+      <div id="factorBars"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Attendance vs predicted score (scatter)</div>
+        <div style="position:relative;height:200px"><canvas id="scatC"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Prediction error by performance category</div>
+        <div style="position:relative;height:200px"><canvas id="errorC"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div id="insights" class="page">
+    <div class="card">
+      <div class="card-title">Key findings</div>
+      <div class="trend-item">
+        <div><div style="font-size:14px;font-weight:500">Attendance below 65%</div><div style="font-size:12px;color:#888;margin-top:3px">Strongly predicts at-risk classification</div></div>
+        <span class="pill pill-low">High risk</span>
+      </div>
+      <div class="trend-item">
+        <div><div style="font-size:14px;font-weight:500">Study hours above 8 / week</div><div style="font-size:12px;color:#888;margin-top:3px">Correlates with high performance tier</div></div>
+        <span class="pill pill-high">Positive</span>
+      </div>
+      <div class="trend-item">
+        <div><div style="font-size:14px;font-weight:500">Internal marks above 38 / 50</div><div style="font-size:12px;color:#888;margin-top:3px">Best single predictor of final score</div></div>
+        <span class="pill pill-high">Positive</span>
+      </div>
+      <div class="trend-item">
+        <div><div style="font-size:14px;font-weight:500">ML subject has largest prediction gap</div><div style="font-size:12px;color:#888;margin-top:3px">Predicted vs actual differ by 5.2 pts</div></div>
+        <span class="pill pill-warn">Review needed</span>
+      </div>
+      <div class="trend-item">
+        <div><div style="font-size:14px;font-weight:500">48 students need immediate intervention</div><div style="font-size:12px;color:#888;margin-top:3px">Flagged as at-risk this semester</div></div>
+        <span class="pill pill-low">Action required</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Recommended academic actions</div>
+        <div class="advice-item"><div class="advice-icon icon-bad">!</div><div><strong>Immediate intervention</strong><div style="font-size:12px;color:#666;margin-top:3px">Assign academic mentors to 48 at-risk students this week</div></div></div>
+        <div class="advice-item"><div class="advice-icon icon-warn">~</div><div><strong>Attendance alerts</strong><div style="font-size:12px;color:#666;margin-top:3px">Automate warnings when attendance drops below 70%</div></div></div>
+        <div class="advice-item"><div class="advice-icon icon-ok">+</div><div><strong>Study group formation</strong><div style="font-size:12px;color:#666;margin-top:3px">Pair high and average performers for peer learning</div></div></div>
+        <div class="advice-item"><div class="advice-icon icon-ok">+</div><div><strong>Personalized learning plans</strong><div style="font-size:12px;color:#666;margin-top:3px">Create individual study targets based on weak factors</div></div></div>
+        <div class="advice-item"><div class="advice-icon icon-ok">+</div><div><strong>Model retraining</strong><div style="font-size:12px;color:#666;margin-top:3px">Update prediction model with current semester data</div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">About this project</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin-bottom:10px">This dashboard enables post-prediction analysis of student academic performance using interactive data visualization.</p>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin-bottom:10px">It identifies early academic risk, compares predicted vs actual results, and highlights key influencing factors like attendance, study hours, and internal marks.</p>
+        <p style="font-size:13px;color:#555;line-height:1.7">Designed to support data-driven decision-making by educators and help students improve through clear visual feedback.</p>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f2f5;font-size:12px;color:#888">
+          Tools: HTML · CSS · JavaScript · Chart.js<br>
+          Dataset: Student performance records — Engg. Dept.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const tc='rgba(0,0,0,0.4)';
+const gc='rgba(0,0,0,0.06)';
+const bo={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:11}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:11}}}}};
+
+new Chart(document.getElementById('distC'),{type:'bar',data:{labels:['40–50','51–60','61–70','71–80','81–90','91–100'],datasets:[{label:'Predicted',data:[12,38,72,96,68,34],backgroundColor:'#378add88',borderRadius:4},{label:'Actual',data:[14,35,68,98,74,31],backgroundColor:'#1d9e7588',borderRadius:4}]},options:bo});
+new Chart(document.getElementById('donutC'),{type:'doughnut',data:{labels:['High','Average','At risk'],datasets:[{data:[87,186,47],backgroundColor:['#1d9e75','#378add','#d85a30'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false}}}});
+new Chart(document.getElementById('subC'),{type:'bar',data:{labels:['Mathematics','Data Structures','DBMS','Networks','OS','ML','Software Eng.'],datasets:[{label:'Predicted',data:[74,69,77,65,71,80,73],backgroundColor:'#378add99',borderRadius:3},{label:'Actual',data:[72,67,79,63,74,75,75],backgroundColor:'#1d9e7599',borderRadius:3}]},options:{...bo,scales:{x:{...bo.scales.x,ticks:{color:tc,font:{size:11},autoSkip:false,maxRotation:30}},y:{...bo.scales.y,min:50,max:95}}}});
+new Chart(document.getElementById('lineC'),{type:'line',data:{labels:['2h','4h','6h','8h','10h','12h','14h+'],datasets:[{label:'Predicted',data:[48,55,63,72,79,85,91],borderColor:'#378add',backgroundColor:'#378add22',tension:0.4,fill:true,pointRadius:4},{label:'Actual',data:[45,53,61,74,80,84,90],borderColor:'#1d9e75',tension:0.4,borderDash:[5,3],pointRadius:4}]},options:{...bo,scales:{x:{...bo.scales.x,title:{display:true,text:'Weekly study hours',color:tc,font:{size:11}}},y:{...bo.scales.y,min:30,max:100}}}});
+
+const sd=Array.from({length:60},()=>{const a=Math.round(50+Math.random()*50);return{x:a,y:Math.min(100,Math.max(30,Math.round(40+a*0.5+(Math.random()-0.5)*16)))};});
+new Chart(document.getElementById('scatC'),{type:'scatter',data:{datasets:[{data:sd,backgroundColor:'#534ab788',pointRadius:5,pointHoverRadius:7}]},options:{...bo,scales:{x:{...bo.scales.x,min:45,max:105,title:{display:true,text:'Attendance (%)',color:tc,font:{size:11}}},y:{...bo.scales.y,min:25,max:105,title:{display:true,text:'Predicted score',color:tc,font:{size:11}}}}}});
+new Chart(document.getElementById('errorC'),{type:'bar',data:{labels:['High performer','Average','At risk'],datasets:[{data:[2.1,3.8,7.4],backgroundColor:['#1d9e75','#378add','#d85a30'],borderRadius:4}]},options:{...bo,scales:{x:{...bo.scales.x},y:{...bo.scales.y,title:{display:true,text:'Avg prediction error (pts)',color:tc,font:{size:11}}}}}});
+
+const factors=[{l:'Internal marks',v:88,c:'#534ab7'},{l:'Attendance rate',v:83,c:'#378add'},{l:'Study hours/week',v:76,c:'#1d9e75'},{l:'Assignment score',v:71,c:'#ba7517'},{l:'Lab performance',v:65,c:'#d85a30'},{l:'Participation',v:54,c:'#d4537e'}];
+const fb=document.getElementById('factorBars');
+factors.forEach(f=>{fb.innerHTML+=`<div class="factor-row"><div class="factor-lbl">${f.l}</div><div class="factor-track"><div class="factor-fill" style="width:${f.v}%;background:${f.c}"></div></div><div class="factor-val">${f.v}%</div></div>`;});
+
+const students=[
+  {name:'Aditya Kumar',roll:'CS001',att:88,study:10,pred:84,actual:82,cat:'high'},
+  {name:'Priya Sharma',roll:'CS002',att:91,study:12,pred:91,actual:89,cat:'high'},
+  {name:'Rahul Singh',roll:'CS003',att:58,study:3,pred:45,actual:48,cat:'low'},
+  {name:'Sneha Reddy',roll:'CS004',att:76,study:7,pred:70,actual:72,cat:'avg'},
+  {name:'Arjun Nair',roll:'CS005',att:52,study:3,pred:41,actual:39,cat:'low'},
+  {name:'Kavya Menon',roll:'CS006',att:84,study:9,pred:79,actual:81,cat:'avg'},
+  {name:'Vikram Patel',roll:'CS007',att:95,study:14,pred:93,actual:91,cat:'high'},
+  {name:'Divya Iyer',roll:'CS008',att:63,study:5,pred:52,actual:55,cat:'low'},
+  {name:'Rohan Gupta',roll:'CS009',att:79,study:8,pred:74,actual:76,cat:'avg'},
+  {name:'Meera Joshi',roll:'CS010',att:88,study:11,pred:86,actual:84,cat:'high'},
+  {name:'Kiran Raj',roll:'CS011',att:61,study:4,pred:49,actual:51,cat:'low'},
+  {name:'Anjali Singh',roll:'CS012',att:83,study:9,pred:78,actual:80,cat:'avg'},
+  {name:'Suresh Kumar',roll:'CS013',att:72,study:6,pred:66,actual:64,cat:'avg'},
+  {name:'Nisha Verma',roll:'CS014',att:94,study:13,pred:90,actual:88,cat:'high'},
+  {name:'Akash Tiwari',roll:'CS015',att:55,study:3,pred:43,actual:46,cat:'low'},
+];
+const bgMap={'high':'#e1f5ee','avg':'#e6f1fb','low':'#fcebeb'};
+const clrMap={'high':'#0f6e56','avg':'#185fa5','low':'#a32d2d'};
+const catLabel={'high':'High','avg':'Average','low':'At risk'};
+const initials=n=>n.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+
+function renderStudents(list){
+  const sl=document.getElementById('studentList');
+  sl.innerHTML='';
+  if(!list.length){sl.innerHTML='<p style="text-align:center;color:#888;padding:20px 0;font-size:13px">No students found.</p>';return;}
+  list.forEach(s=>{
+    sl.innerHTML+=`<div class="student-row">
+      <div class="avatar" style="background:${bgMap[s.cat]};color:${clrMap[s.cat]}">${initials(s.name)}</div>
+      <div class="stu-info">
+        <div class="stu-name">${s.name} <span style="font-size:12px;color:#aaa;font-weight:400">${s.roll}</span></div>
+        <div class="stu-meta">Attendance: ${s.att}% &nbsp;·&nbsp; Study: ${s.study}h/wk &nbsp;·&nbsp; Predicted: ${s.pred} &nbsp;·&nbsp; Actual: ${s.actual}</div>
+      </div>
+      <span class="pill" style="background:${bgMap[s.cat]};color:${clrMap[s.cat]}">${catLabel[s.cat]}</span>
+    </div>`;
+  });
+}
+renderStudents(students);
+
+function filterStudents(q){
+  renderStudents(students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||s.roll.toLowerCase().includes(q.toLowerCase())));
+}
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function runPredict(){
+  const att=parseFloat(document.getElementById('att').value)||0;
+  const study=parseFloat(document.getElementById('study').value)||0;
+  const intern=parseFloat(document.getElementById('internal').value)||0;
+  const assign=parseFloat(document.getElementById('assign').value)||0;
+  const lab=parseFloat(document.getElementById('lab').value)||0;
+  const part=parseFloat(document.getElementById('part').value)||0;
+  const score=Math.round(Math.min(100,Math.max(0,att*0.28+(study/14)*100*0.22+(intern/50)*100*0.24+assign*0.12+lab*0.08+part*0.06)));
+  const rb=document.getElementById('resultBox');
+  const rs=document.getElementById('resScore');
+  const rl=document.getElementById('resLabel');
+  const ra=document.getElementById('resAdvice');
+  rb.style.display='block';
+  rs.textContent=score;
+  let cat,col;
+  if(score>=80){cat='High performer';col='#0f6e56';}
+  else if(score>=60){cat='Average performer';col='#185fa5';}
+  else{cat='At risk — needs immediate support';col='#a32d2d';}
+  rs.style.color=col;
+  rl.textContent=cat+' — Predicted final score';
+  const advice=[];
+  if(att<70)advice.push({t:'Attendance is critically low. Must exceed 75% to avoid shortage.',cls:'icon-bad'});
+  else if(att<80)advice.push({t:'Attendance is below ideal. Aim for 85%+ consistently.',cls:'icon-warn'});
+  else advice.push({t:'Attendance is healthy. Maintain this consistency.',cls:'icon-ok'});
+  if(study<5)advice.push({t:'Study hours are insufficient. Target at least 8 hours per week.',cls:'icon-bad'});
+  else if(study<8)advice.push({t:'Increase study hours to 8–10h per week for better outcomes.',cls:'icon-warn'});
+  else advice.push({t:'Study schedule is strong. Keep it up.',cls:'icon-ok'});
+  if((intern/50)*100<70)advice.push({t:'Focus on internal exam preparation. Practice past papers.',cls:'icon-warn'});
+  else advice.push({t:'Internal marks are solid. Continue revision practice.',cls:'icon-ok'});
+  if(assign<65)advice.push({t:'Assignment scores are low. Submit all pending assignments.',cls:'icon-warn'});
+  else advice.push({t:'Assignment completion is good.',cls:'icon-ok'});
+  ra.innerHTML=advice.map(a=>`<div class="advice-item"><div class="advice-icon ${a.cls}">${a.cls==='icon-ok'?'+':a.cls==='icon-warn'?'~':'!'}</div><div>${a.t}</div></div>`).join('');
+}
+</script>
+</body>
+</html>
